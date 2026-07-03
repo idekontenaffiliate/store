@@ -615,11 +615,11 @@ function checkout(){
   else if(pay==='shopee')window.open(SHOPEE,'_blank');
   else window.open(TIKTOK,'_blank');
   toast('✅ Pesanan '+o.id+' berhasil!');
-  const res = await gsPost(AS.Pesanan,{action:'tambah', id:o.id, cust:o.cust, phone:o.phone,
-      items:JSON.stringify(o.items), total:o.total, status:o.status, pay:o.pay,
-      addr:o.addr, ship:o.ship, date:o.date});
-  if(res.status==='ok'){ orders.push(o); ...lanjut seperti biasa... }
-  else { toast('❌ Gagal simpan ke server'); return; }
+  // const res = await gsPost(AS.Pesanan,{action:'tambah', id:o.id, cust:o.cust, phone:o.phone,
+  //     items:JSON.stringify(o.items), total:o.total, status:o.status, pay:o.pay,
+  //     addr:o.addr, ship:o.ship, date:o.date});
+  // if(res.status==='ok'){ orders.push(o); ...lanjut seperti biasa... }
+  // else { toast('❌ Gagal simpan ke server'); return; }
 }
 function waOrder(pid){const p=products.find(x=>x.id===pid);if(!p)return;const sz=selSize||'(belum pilih)';const msg=encodeURIComponent(`Halo TokoKu!\nSaya mau pesan:\n${p.name}\nUkuran: ${sz}\nHarga: ${Rp(p.price)}\nInfo ketersediaan & pembayaran?`);window.open(`https://wa.me/${WA}?text=${msg}`,'_blank');}
 
