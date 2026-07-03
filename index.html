@@ -259,7 +259,7 @@ nav button.active{color:var(--ac);border-bottom-color:var(--ac);}
 </div></div>
 <div class="login-card">
 <div class="login-brand"><span class="login-brand-icon">👔</span><h1>Dress Store</h1><p>Fashion · Style · Quality</p></div>
-<div class="login-hint"><b>✦</b><span> <b>3 Juli 2026 18.27</b></span></div>
+<div class="login-hint"><b>✦</b><span> <b>3 Juli 2026 18.31</b></span></div>
 <div class="lf-group"><label class="lf-label">Username</label><input type="text" id="l-user" class="lf-input" placeholder="Masukkan username" autocomplete="off" autocapitalize="none"></div>
 <div class="lf-group"><label class="lf-label">Password</label><input type="password" id="l-pass" class="lf-input" placeholder="Masukkan password"></div>
 <button class="login-btn" id="login-btn" onclick="doLogin()">Masuk</button>
@@ -385,7 +385,26 @@ function initDemo(){
   save();
 }
 function save(){localStorage.setItem('tk_p',JSON.stringify(products));localStorage.setItem('tk_o',JSON.stringify(orders));}
-function load(){try{products=JSON.parse(localStorage.getItem('tk_p')||'[]');}catch(e){products=[];}try{orders=JSON.parse(localStorage.getItem('tk_o')||'[]');}catch(e){orders=[];}if(!products.length)initDemo();}
+// function load(){try{products=JSON.parse(localStorage.getItem('tk_p')||'[]');}catch(e){products=[];}try{orders=JSON.parse(localStorage.getItem('tk_o')||'[]');}catch(e){orders=[];}if(!products.length)initDemo();}
+// ── HELPER: kirim ke Apps Script (form-urlencoded biar hindari CORS preflight) ──
+function gsPost(url, params){
+  return fetch(url,{method:'POST',body:new URLSearchParams(params)})
+    .then(r=>r.json()).catch(err=>{console.error('gsPost error',err);return{status:'error'};});
+}
+function gsGetCSV(url){
+  return fetch(url).then(r=>r.text()).then(parseCSV).catch(()=>[]);
+}
+function load(){
+  const [prodCSV,ordCSV,annCSV] = await Promise.all([
+    URLS.Produk? gsGetCSV(URLS.Produk):[],
+    URLS.Pesanan? gsGetCSV(URLS.Pesanan):[],
+    URLS.Pengumuman? gsGetCSV(URLS.Pengumuman):[],
+  ]);
+  products = prodCSV.length? mapProdukFromCSV(prodCSV) : (JSON.parse(localStorage.getItem('tk_p')||'[]'));
+  orders   = ordCSV.length? mapPesananFromCSV(ordCSV) : (JSON.parse(localStorage.getItem('tk_o')||'[]'));
+  anns     = annCSV.length? annCSV : anns;
+  if(!products.length) initDemo();
+}
 
 // ══════════════════════════════════════════════════════════════
 // AUTH
@@ -596,6 +615,11 @@ function checkout(){
   else if(pay==='shopee')window.open(SHOPEE,'_blank');
   else window.open(TIKTOK,'_blank');
   toast('✅ Pesanan '+o.id+' berhasil!');
+  const res = await gsPost(AS.Pesanan,{action:'tambah', id:o.id, cust:o.cust, phone:o.phone,
+      items:JSON.stringify(o.items), total:o.total, status:o.status, pay:o.pay,
+      addr:o.addr, ship:o.ship, date:o.date});
+  if(res.status==='ok'){ orders.push(o); ...lanjut seperti biasa... }
+  else { toast('❌ Gagal simpan ke server'); return; }
 }
 function waOrder(pid){const p=products.find(x=>x.id===pid);if(!p)return;const sz=selSize||'(belum pilih)';const msg=encodeURIComponent(`Halo TokoKu!\nSaya mau pesan:\n${p.name}\nUkuran: ${sz}\nHarga: ${Rp(p.price)}\nInfo ketersediaan & pembayaran?`);window.open(`https://wa.me/${WA}?text=${msg}`,'_blank');}
 
@@ -805,39 +829,7 @@ function rHistory(){
     <div class="sh"><span class="st">🕘 History</span><span class="sc">${logs.length}</span></div>
     ${logs.map(l=>`<div class="card" style="border-left:3px solid var(--ac);padding:9px 11px;"><div style="font-size:.65rem;color:var(--tx3);">📅 ${fmtDate(l.t)}</div><div style="font-size:.8rem;margin-top:2px;">${esc(l.d)}</div></div>`).join('')||'<div class="empty"><div class="ei">📭</div><p>Belum ada</p></div>'}`;
 }
-// ......
-// ── HELPER: kirim ke Apps Script (form-urlencoded biar hindari CORS preflight) ──
-function gsPost(url, params){
-  return fetch(url,{method:'POST',body:new URLSearchParams(params)})
-    .then(r=>r.json()).catch(err=>{console.error('gsPost error',err);return{status:'error'};});
-}
-function gsGetCSV(url){
-  return fetch(url).then(r=>r.text()).then(parseCSV).catch(()=>[]);
-}
 
-// ── LOAD dari Google Sheets, bukan cuma localStorage ──
-async function load(){
-  const [prodCSV,ordCSV,annCSV] = await Promise.all([
-    URLS.Produk? gsGetCSV(URLS.Produk):[],
-    URLS.Pesanan? gsGetCSV(URLS.Pesanan):[],
-    URLS.Pengumuman? gsGetCSV(URLS.Pengumuman):[],
-  ]);
-  products = prodCSV.length? mapProdukFromCSV(prodCSV) : (JSON.parse(localStorage.getItem('tk_p')||'[]'));
-  orders   = ordCSV.length? mapPesananFromCSV(ordCSV) : (JSON.parse(localStorage.getItem('tk_o')||'[]'));
-  anns     = annCSV.length? annCSV : anns;
-  if(!products.length) initDemo();
-}
-
-// ── CHECKOUT → kirim ke sheet Pesanan, bukan cuma push ke array ──
-async function checkout(){
-  ...
-  const o={...};
-  const res = await gsPost(AS.Pesanan,{action:'tambah', id:o.id, cust:o.cust, phone:o.phone,
-      items:JSON.stringify(o.items), total:o.total, status:o.status, pay:o.pay,
-      addr:o.addr, ship:o.ship, date:o.date});
-  if(res.status==='ok'){ orders.push(o); ...lanjut seperti biasa... }
-  else { toast('❌ Gagal simpan ke server'); return; }
-}  
 // ══════════════════════════════════════════════════════════════
 // KEYBOARD
 // ══════════════════════════════════════════════════════════════
